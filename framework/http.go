@@ -216,6 +216,8 @@ func (this *Server) RegisterHandler(path string, handler func(Context)) {
 	}
 	if strings.HasSuffix(path, "/") {
 		path = fmt.Sprintf("%s.*", path)
+	} else if strings.HasSuffix(path, "?")  {
+		path = fmt.Sprintf("%s.*", path)
 	} else {
 		path = fmt.Sprintf("%s$", path)
 	}
