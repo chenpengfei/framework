@@ -13,6 +13,7 @@ import (
 	"errors"
 	"encoding/json"
 	"io/ioutil"
+	"github.com/graphql-go/handler"
 )
 
 type Server struct {
@@ -110,7 +111,17 @@ func (this *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					ctx.pathParams[pathNode.params[i]] = pathParam
 				}
 			}
-			pathNode.handler(ctx)
+			// 优先使用 graphl-go handler
+			if pathNode.graphqlHandler != nil {
+				if this.CrossDomain {
+					w.Header().Set(AccessControlAllowOrigin, "*")
+					w.Header().Set(AccessControlAllowMethods, METHODS)
+					w.Header().Set(AccessControlAllowHeaders, "*")
+				}
+				pathNode.graphqlHandler.ContextHandler(r.Context(), w, r)
+			} else {
+				pathNode.handler(ctx)
+			}
 			return
 		}
 	}
@@ -202,6 +213,35 @@ func RegisterHandler(path string, handler func(Context)) {
 	globalServer.RegisterHandler(path, handler)
 }
 
+func RegisterGraphQLHandler(path string, handler *handler.Handler) {
+	globalServer.RegisterGraphQLHandler(path, handler)
+}
+
+func (this *Server) RegisterGraphQLHandler(path string, handler *handler.Handler) {
+	this.Lock()
+	defer this.Unlock()
+	if len(path) <= 0 {
+		return
+	}
+	if handler == nil {
+		return
+	}
+
+	path = fmt.Sprintf("%s$", path)
+	var params []string
+
+	pathReg, err := regexp.Compile(path)
+	log.Printf(fmt.Sprintf("注册 GraphQLHandler: %s", path))
+	if !ProcessError(err) {
+		this.pathNodes[path] = pathProcessor{
+			pathReg: pathReg,
+			handler: nil,
+			graphqlHandler: handler,
+			params:  params,
+		}
+	}
+}
+
 /*
 注册handler时, 有prefix扰乱
  */
@@ -242,6 +282,7 @@ func (this *Server) RegisterHandler(path string, handler func(Context)) {
 		this.pathNodes[path] = pathProcessor{
 			pathReg: pathReg,
 			handler: handler,
+			graphqlHandler: nil,
 			params:  params,
 		}
 	}
@@ -255,9 +296,10 @@ type triNode struct {
 }
 
 type pathProcessor struct {
-	pathReg *regexp.Regexp
-	params  []string
-	handler func(Context)
+	pathReg        *regexp.Regexp
+	params         []string
+	handler        func(Context)
+	graphqlHandler *handler.Handler
 }
 
 func StaticProcessor(ctx Context) {
