@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"io/ioutil"
 	"strings"
-	"github.com/wenlaizhou/etree"
+	"github.com/chenpengfei/etree"
 )
 
 // read <include src="filePath" /> and replace string

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"fmt"
 	"github.com/go-xorm/xorm"
-	"github.com/wenlaizhou/framework/framework"
+	"github.com/chenpengfei/framework/framework"
 	"errors"
 )
 
